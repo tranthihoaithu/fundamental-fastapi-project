@@ -10,8 +10,6 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     password = Column(String, unique=True, index=True)
     email = Column(String, unique=True, index=True)
-    first_name = Column(String, unique=True, index=True)
-    last_name = Column(String, unique=True, index=True)
 
 
 class Product(Base):
@@ -31,7 +29,7 @@ class Payment(Base):
     status = Column(String)
     payment_method = Column(String)
 
-    user = relationship("User", back_populates="payments")
+    # user = relationship("User", back_populates="payments")
 
 
 class Order(Base):
@@ -42,6 +40,6 @@ class Order(Base):
     quantity = Column(Integer)
     total_price = Column(Float)
 
-    user = relationship("User", back_populates="orders")
-    product = relationship("Product")
+    # user = relationship("User", back_populates="orders")
+    # product = relationship("Product")
 
