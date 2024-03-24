@@ -1,16 +1,23 @@
 from datetime import timedelta
 from typing import Union
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from typing import Annotated
 from sqlalchemy.orm import Session
+from starlette.middleware.base import BaseHTTPMiddleware
+
 from .database import SessionLocal, engine
 from . import models, schemas, authentication, security
-from .crud import product_crud, user_crud, order_crud
-from .schemas import user_schemas, product_schemas, order_schemas
+from .crud import product_crud, user_crud, order_crud, payment_crud
+from .schemas import user_schemas, product_schemas, order_schemas, payment_schemas
 
 models.Base.metadata.create_all(bind=engine)
 
+
 app = FastAPI()
 
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Dependency
 def get_db():
@@ -19,6 +26,9 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+# Hàm để lấy thông tin người dùng từ token
 
 
 @app.post("/register/", response_model=user_schemas.User)
@@ -40,6 +50,10 @@ def login_user(user: user_schemas.UserLogin, db: Session = Depends(get_db)):
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
+
+@app.get("/users/me", response_model=user_schemas.User)
+def read_users_me(current_user: user_schemas.User = Depends(authentication.get_current_user)):
+    return current_user
 
 @app.post("/products/", response_model=product_schemas.ProductCreate)
 def create_product(product: product_schemas.ProductCreate, db: Session = Depends(get_db)):
@@ -78,34 +92,22 @@ def get_list_products(db: Session = Depends(get_db)):
 
 
 @app.post("/orders/", response_model=order_schemas.Order)
-def create_order(order: order_schemas.OrderCreate, db: Session = Depends(get_db)):
-    order_items = order.order_items
-    for item in order_items:
+def create_order(order: order_schemas.OrderCreate, db: Session = Depends(SessionLocal), current_user: models.User = Depends(authentication.get_current_user)):
+    order.user_id = current_user.id
+    for item in order.order_items:
         product = db.query(models.Product).filter(models.Product.id == item.product_id).first()
         if product is None:
-            raise HTTPException(status_code=404, detail=f"Product with id {item.product_id} not found.")
+            raise HTTPException(status_code=404, detail=f"Sản phẩm với id {item.product_id} không được tìm thấy.")
         elif product.stock_quantity < item.quantity:
-            raise HTTPException(status_code=400, detail=f"Not enough quantity available for product with id {item.product_id}.")
+            raise HTTPException(status_code=400, detail=f"Số lượng không đủ cho sản phẩm với id {item.product_id}.")
 
         product.stock_quantity -= item.quantity
 
-    return order_crud.create_order(db=db, order=order)
+    new_order = order_crud.create_order(db=db, order=order)
+    return new_order
 
 
-# @app.post("/orders/", response_model=order_schemas.Order)
-# def place_order(order: order_schemas.OrderCreate, db: Session = Depends(get_db)):
-#     total_price = 0
-#     for item in order.items:
-#         product = product_crud.get_product(db, product_id=item.product_id)
-#         if product is None:
-#             raise HTTPException(status_code=404, detail=f"Product with ID {item.product_id} not found")
-#         if product.stock_quantity < item.quantity:
-#             raise HTTPException(status_code=400, detail=f"Insufficient stock for product with ID {item.product_id}")
-#
-#         product.stock_quantity -= item.quantity
-#         item_price = product.price * item.quantity
-#         total_price += item_price
-#
-#     db_order = order_crud.create_order(db, order)
-#     db_order.total_price = total_price
-#     return db_order
+@app.post("/payments/", response_model=payment_schemas.Payment)
+def create_payment(payment: payment_schemas.PaymentCreate, db: Session = Depends(get_db)):
+    return payment_crud.create_payment(db=db, payment=payment)
+

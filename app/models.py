@@ -1,3 +1,4 @@
+from enum import Enum
 
 from sqlalchemy import Column, ForeignKey, Integer, String, Float, DateTime, Boolean
 from sqlalchemy.orm import relationship
@@ -29,19 +30,6 @@ class Product(Base):
     order_items = relationship("OrderItem", back_populates="product")
 
 
-class Payment(Base):
-    __tablename__ = 'payments'
-    id = Column(Integer, primary_key=True, index=True)
-    user_ID = Column(Integer, ForeignKey('users.id'))
-    order_id = Column(Integer, ForeignKey('orders.id'))
-    amount = Column(Float)
-    status = Column(String)
-    payment_method = Column(String)
-
-    user = relationship("User", back_populates="payments")
-    orders = relationship("Order", back_populates="payments")
-
-
 class Order(Base):
     __tablename__ = 'orders'
     id = Column(Integer, primary_key=True, index=True)
@@ -54,6 +42,7 @@ class Order(Base):
     user = relationship("User", back_populates="orders")
     payments = relationship("Payment", back_populates="orders")
 
+
 class OrderItem(Base):
     __tablename__ = 'order_items'
     order_item_id = Column(Integer, primary_key=True, index=True)
@@ -63,3 +52,16 @@ class OrderItem(Base):
     order = relationship("Order", back_populates="order_items")
 
     product = relationship("Product", back_populates="order_items")
+
+
+class Payment(Base):
+    __tablename__ = 'payments'
+    id = Column(Integer, primary_key=True, index=True)
+    user_ID = Column(Integer, ForeignKey('users.id'))
+    order_id = Column(Integer, ForeignKey('orders.id'))
+    amount = Column(Float)
+    status = Column(String)
+    payment_method = Column(String)
+
+    user = relationship("User", back_populates="payments")
+    orders = relationship("Order", back_populates="payments")
